@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>테트리스 게임</title>
+    <style>
+        body {
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #game-board {
+            border: 2px solid #333;
+            background-color: #fff;
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="game-board" width="300" height="600"></canvas>
+    <div id="score">점수: 0</div>
+    <script>
+        const canvas = document.getElementById('game-board');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const scale = 30;
+        const rows = 20;
+        const columns = 10;
+
+        const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500'];
+
+        const shapes = [
+            [[1, 1, 1, 1]],
+            [[1, 1], [1, 1]],
+            [[1, 1, 1], [0, 1, 0]],
+            [[1, 1, 1], [1, 0, 0]],
+            [[1, 1, 1], [0, 0, 1]],
+            [[1, 1, 0], [0, 1, 1]],
+            [[0, 1, 1], [1, 1, 0]]
+        ];
+
+        let board = Array(rows).fill().map(() => Array(columns).fill(0));
+        let currentPiece = null;
+        let score = 0;
+
+        function newPiece() {
+            const shapeIndex = Math.floor(Math.random() * shapes.length);
+            return {
+                shape: shapes[shapeIndex],
+                color: colors[shapeIndex],
+                x: Math.floor(columns / 2) - Math.floor(shapes[shapeIndex][0].length / 2),
+                y: 0
+            };
+        }
+
+        function drawBoard() {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < columns; x++) {
+                    if (board[y][x]) {
+                        ctx.fillStyle = board[y][x];
+                        ctx.fillRect(x * scale, y * scale, scale - 1, scale - 1);
+                    }
+                }
+            }
+        }
+
+        function drawPiece() {
+            if (!currentPiece) return;
+            ctx.fillStyle = currentPiece.color;
+            currentPiece.shape.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) {
+                        ctx.fillRect((currentPiece.x + x) * scale, (currentPiece.y + y) * scale, scale - 1, scale - 1);
+                    }
+                });
+            });
+        }
+
+        function collision(piece = currentPiece) {
+            return piece.shape.some((row, y) => 
+                row.some((value, x) => 
+                    value && (
+                        piece.y + y >= rows ||
+                        piece.x + x < 0 ||
+                        piece.x + x >= columns ||
+                        (board[piece.y + y] && board[piece.y + y][piece.x + x])
+                    )
+                )
+            );
+        }
+
+        function mergePiece() {
+            currentPiece.shape.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) {
+                        board[currentPiece.y + y][currentPiece.x + x] = currentPiece.color;
+                    }
+                });
+            });
+        }
+
+        function clearLines() {
+            let linesCleared = 0;
+            for (let y = rows - 1; y >= 0; y--) {
+                if (board[y].every(value => value !== 0)) {
+                    board.splice(y, 1);
+                    board.unshift(Array(columns).fill(0));
+                    linesCleared++;
+                    y++; // 라인을 제거했으므로 같은 y를 다시 검사
+                }
+            }
+            if (linesCleared > 0) {
+                score += linesCleared * 100;
+                scoreElement.textContent = `점수: ${score}`;
+            }
+        }
+
+        function isGameOver() {
+            return collision({...currentPiece, y: 0});
+        }
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'ArrowLeft' && !collision({...currentPiece, x: currentPiece.x - 1})) {
+                currentPiece.x--;
+            } else if (event.key === 'ArrowRight' && !collision({...currentPiece, x: currentPiece.x + 1})) {
+                currentPiece.x++;
+            } else if (event.key === 'ArrowDown' && !collision({...currentPiece, y: currentPiece.y + 1})) {
+                currentPiece.y++;
+            } else if (event.key === 'ArrowUp') {
+                const rotated = currentPiece.shape[0].map((_, i) => 
+                    currentPiece.shape.map(row => row[i]).reverse()
+                );
+                if (!collision({...currentPiece, shape: rotated})) {
+                    currentPiece.shape = rotated;
+                }
+            }
+        });
+
+        let dropCounter = 0;
+        let lastTime = 0;
+        const dropInterval = 1000; // 1초마다 블록이 떨어짐
+
+        function update(time = 0) {
+            const deltaTime = time - lastTime;
+            lastTime = time;
+
+            dropCounter += deltaTime;
+            if (dropCounter > dropInterval) {
+                currentPiece.y++;
+                if (collision()) {
+                    currentPiece.y--;
+                    mergePiece();
+                    clearLines();
+                    if (isGameOver()) {
+                        alert('게임 오버! 점수: ' + score);
+                        board = Array(rows).fill().map(() => Array(columns).fill(0));
+                        score = 0;
+                        scoreElement.textContent = `점수: ${score}`;
+                    }
+                    currentPiece = newPiece();
+                }
+                dropCounter = 0;
+            }
+
+            drawBoard();
+            drawPiece();
+            requestAnimationFrame(update);
+        }
+
+        currentPiece = newPiece();
+        update();
+    </script>
+</body>
+</html>
