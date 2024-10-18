@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenAI GPT-4 챗봇</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .chat-container {
+      width: 400px;
+      background-color: white;
+      box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-box {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .input-box {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+    }
+
+    input {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+      margin-left: 10px;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .message {
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .user-message {
+      background-color: #007bff;
+      color: white;
+      text-align: right;
+    }
+
+    .bot-message {
+      background-color: #f1f1f1;
+      color: black;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-box" id="chat-box">
+      <!-- 대화 내용이 표시될 곳 -->
+    </div>
+    <div class="input-box">
+      <input type="text" id="user-input" placeholder="메시지를 입력하세요" />
+      <button id="send-btn">전송</button>
+    </div>
+  </div>
+
+  <script>
+    // OpenAI API 키
+    const API_KEY = "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";  // OpenAI에서 발급받은 API 키를 넣으세요
+
+    document.getElementById("send-btn").addEventListener("click", () => {
+      sendMessage();
+    });
+
+    document.getElementById("user-input").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        sendMessage();
+      }
+    });
+
+    function sendMessage() {
+      const userInput = document.getElementById("user-input").value;
+      if (!userInput.trim()) return;
+
+      // 사용자의 메시지를 채팅창에 표시
+      addMessage(userInput, "user-message");
+
+      // 사용자 입력 초기화
+      document.getElementById("user-input").value = "";
+
+      // OpenAI에 질문을 보냄
+      fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-3.5-turbo",  // GPT-4 모델 사용
+          messages: [{ role: "user", content: userInput }],
+          max_tokens: 150,
+        }),
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(err => {
+            throw new Error(err.error.message || "Unknown error occurred");
+          });
+        }
+        return response.json();
+      })
+      .then(data => {
+        const botResponse = data.choices[0].message.content.trim();
+        addMessage(botResponse, "bot-message");
+      })
+      .catch(error => {
+        addMessage(`오류가 발생했습니다: ${error.message}`, "bot-message");
+        console.error("Error:", error);
+      });
+    }
+
+    function addMessage(message, className) {
+      const chatBox = document.getElementById("chat-box");
+      const messageElement = document.createElement("div");
+      messageElement.classList.add("message", className);
+      messageElement.textContent = message;
+      chatBox.appendChild(messageElement);
+      chatBox.scrollTop = chatBox.scrollHeight;  // 스크롤을 항상 최신 메시지로 유지
+    }
+  </script>
+</body>
+</html>
